@@ -1,0 +1,99 @@
+---
+- name: Install Software
+  become: true
+  ansible.builtin.package:
+    name: "{{ item }}"
+    state: present
+  with_items:
+    - nginx
+  tags:
+    - provision
+- name: Create the frontend user
+  become: true
+  user:
+    name: "{{ frontend_user_name }}"
+    comment: "Frontend user to run the frontend build"
+  tags:
+    - provision
+- name: "Create the frontend {{ http_static_dir }} folder"
+  become: true
+  ansible.builtin.file:
+    path: "{{ http_static_dir }}"
+    state: directory
+    mode: "0755"
+    owner: "{{ frontend_user_name }}"
+  tags:
+    - provision
+- name: Copy frontend.html
+  become: true
+  template:
+    src: frontend.html.j2
+    dest: "{{ http_static_dir }}/frontend.html"
+  tags:
+    - provision
+- name: Make sure {{ http_static_dir }} exists
+  become: true
+  stat:
+    path: "{{ http_static_dir }}"
+  register: http_static_exists
+  tags:
+    - provision
+- name: Debug Msg
+  debug:
+    msg: "{{ http_static_exists }}"
+  tags:
+    - provision
+- name: Copy Nginx Configurations
+  become: true
+  template:
+    src: nginx.conf.j2
+    dest: /etc/nginx/nginx.conf
+  register: nginx_config
+  when: http_static_exists.stat.exists and http_static_exists.stat.mode == "0755"
+  tags:
+    - provision
+- name: print nginx_config variable
+  debug:
+    msg: "{{ nginx_config }}"
+  tags:
+    - provision
+    #- name: Permit traffic for http service
+    #become: true
+    #ansible.posix.firewalld:
+    #service: http
+    #permanent: yes
+    #immediate: yes
+    #state: enabled
+- name: Put SELinux in permissive mode
+  become: true
+  ansible.posix.selinux:
+    policy: targeted
+    state: permissive
+  tags:
+    - provision
+- name: Restart Nginx
+  become: true
+  systemd:
+    name: nginx
+    state: restarted
+  tags:
+    - provision
+- name: Turn on NGINX Service
+  become: true
+  ansible.builtin.systemd:
+    name: nginx
+    state: started
+    enabled: yes
+  tags:
+    - provision
+# - name: Collect facts about system services
+#   service_facts:
+#   register: services_state
+#   tags:
+#     - info
+# - name: Display status of nginx service
+#   debug:
+#     var: services_state.ansible_facts.services['nginx.service']
+#   when: services_state.ansible_facts.services['nginx.service'] is defined
+#   tags:
+#     - info

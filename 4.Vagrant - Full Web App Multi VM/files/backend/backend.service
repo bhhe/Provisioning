@@ -1,0 +1,13 @@
+[Unit]
+Description=Tutorials backend
+After=network.target
+
+[Service]
+WorkingDirectory=/home/backend/code
+Type=simple
+User=backend
+ExecStart=/usr/bin/node /home/backend/code/server.js
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,41 @@
+---
+- name: Install Software
+  become: true
+  ansible.builtin.package:
+    name: "{{ item }}"
+    state: present
+  with_items:
+    - mysql-server
+  register: mysql_installed
+- name: Copy db_init.sql
+  become: true
+  template:
+    src: db_init.sql.j2
+    dest: /
+- name: Permit traffic for mysql service
+  become: true
+  ansible.posix.firewalld:
+    port: 3306/tcp
+    permanent: "{{ open_firewall }}"
+    immediate: "{{ open_firewall }}"
+    state: enabled
+- name: Turn on mysqld Service
+  become: true
+  ansible.builtin.systemd:
+    name: mysqld
+    state: started
+    enabled: yes
+- name: Check for provisioning ok file
+  stat:
+    path: provisioning_db_ok
+  register: provisioning_ok_file
+- name: Run db initialization script
+  become: true
+  shell: "mysql -u root < /db_init.sql.j2"
+  register: sql_query_output
+  when: not provisioning_ok_file.stat.exists
+- name: Create a file to prove provisioning was run
+  file:
+    path: provisioning_db_ok
+    state: touch
+  when: not provisioning_ok_file.stat.exists

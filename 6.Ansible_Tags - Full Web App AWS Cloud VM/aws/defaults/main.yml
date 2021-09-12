@@ -1,0 +1,4 @@
+---
+AWS_PREFIX: "4640_lab"
+VM_SUFFIX: "Tutorials"
+# defaults file for aws

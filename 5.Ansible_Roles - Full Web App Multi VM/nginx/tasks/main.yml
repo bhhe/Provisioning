@@ -1,0 +1,50 @@
+---
+- name: Install Software
+  become: true
+  ansible.builtin.package:
+    name: "{{ item }}"
+    state: present
+  with_items:
+    - nginx
+- name: Make sure http_static_dir exists
+  become: true
+  stat:
+    path: "{{ http_static_dir }}"
+  register: http_static_exists
+- name: Debug Msg
+  debug:
+    msg: "{{ http_static_exists }}"
+- name: Copy Nginx Configurations
+  become: true
+  template:
+    src: nginx.conf.j2
+    dest: /etc/nginx/nginx.conf
+  register: nginx_config
+  when: http_static_exists.stat.exists and http_static_exists.stat.mode == "0755"
+- name: print nginx_config variable
+  debug:
+    msg: "{{ nginx_config }}"
+- name: Permit traffic for http service
+  become: true
+  ansible.posix.firewalld:
+    service: http
+    permanent: yes
+    immediate: yes
+    state: enabled
+- name: Put SELinux in permissive mode
+  become: true
+  ansible.posix.selinux:
+    policy: targeted
+    state: permissive
+- name: Restart Nginx
+  become: true
+  systemd:
+    name: nginx
+    state: restarted
+  when: nginx_config.changed
+- name: Turn on NGINX Service
+  become: true
+  ansible.builtin.systemd:
+    name: nginx
+    state: started
+    enabled: yes

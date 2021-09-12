@@ -1,0 +1,42 @@
+---
+- hosts: localhost
+  tasks:
+    - name: aws role
+      include_role:
+        name: aws
+      tags:
+        - provision
+        - info
+        - clean
+- hosts: aws_ec2
+  vars:
+    student_name: "Bowen He"
+    student_id: "A00816145"
+  tasks:
+    - name: Run backend role
+      include_role:
+        name: backend
+      tags:
+        - provision
+    - name: Run frontend role
+      include_role:
+        name: frontend
+      tags:
+        - provision
+    - name: Collect facts about system services
+      service_facts:
+      register: services_state
+      tags:
+        - info
+    - name: Display status of nginx service
+      debug:
+        var: services_state.ansible_facts.services['nginx.service']
+      when: services_state.ansible_facts.services['nginx.service'] is defined
+      tags:
+        - info
+    - name: Display status of backend service
+      debug:
+        var: services_state.ansible_facts.services['backend.service']
+      when: services_state.ansible_facts.services['backend.service'] is defined
+      tags:
+        - info

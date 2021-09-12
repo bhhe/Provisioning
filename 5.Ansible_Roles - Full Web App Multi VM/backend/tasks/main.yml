@@ -1,0 +1,63 @@
+---
+- name: Install Software
+  become: true
+  ansible.builtin.package:
+    name: "{{ item }}"
+    state: present
+  with_items:
+    - git
+    - "@nodejs:14"
+- name: "Create the backend {{ backend_user }} user"
+  become: true
+  user:
+    name: "{{ backend_user }}"
+    comment: "{{ backend_user }} user to run the {{ backend_user }} build"
+  register: backend_user_created
+- name: "Debug user"
+  become: true
+  debug:
+    msg: "{{ backend_user_created }}"
+- name: "Create the {{ backend_user }} {{ backend_src_dir }} folder"
+  become: true
+  ansible.builtin.file:
+    path: "{{  backend_src_dir }}"
+    state: directory
+    mode: "0755"
+    owner: "{{ backend_user }}"
+- name: git clone the backend source code
+  become: true
+  become_user: "{{ backend_user }}"
+  ansible.builtin.git:
+    repo: 'https://github.com/bezkoder/nodejs-express-sequelize-mysql.git'
+    dest: "{{ backend_src_dir }}"
+    force: yes
+- name: Install dependencies
+  become: true
+  become_user: "{{ backend_user }}"
+  community.general.npm:
+    path: "{{ backend_src_dir }}"
+- name: Copy DB Configurations
+  become: true
+  template:
+    src: db.config.js.j2
+    dest: "{{ backend_src_dir }}/app/config/db.config.js"
+- name: Copy Service file
+  become: true
+  template:
+    src: backend.service.j2
+    dest: "/etc/systemd/system/backend.service"
+- name: Start service file
+  become: true
+  ansible.builtin.systemd:
+    name: backend.service
+    daemon_reload: yes
+    enabled: yes
+    state: started
+  when: backend_user_created.state == "present"
+- name: Expose port
+  become: true
+  ansible.posix.firewalld:
+    port: 8080/tcp
+    immediate: "{{ open_firewall }}"
+    state: enabled
+    permanent: "{{ open_firewall }}"

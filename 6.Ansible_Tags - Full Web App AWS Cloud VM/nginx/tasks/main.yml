@@ -1,0 +1,85 @@
+---
+- name: Install Software
+  become: true
+  ansible.builtin.package:
+    name: "{{ item }}"
+    state: present
+  with_items:
+    - nginx
+  tags:
+    - provision
+    - application
+- name: Make sure {{ http_static_dir }} exists
+  become: true
+  stat:
+    path: "{{ http_static_dir }}"
+  register: http_static_exists
+  tags:
+    - provision
+    - application
+- name: Debug Msg
+  debug:
+    msg: "{{ http_static_exists }}"
+  tags:
+    - provision
+    - application
+- name: Copy Nginx Configurations
+  become: true
+  template:
+    src: nginx.conf.j2
+    dest: /etc/nginx/nginx.conf
+  register: nginx_config
+  when: http_static_exists.stat.exists and http_static_exists.stat.mode == "0755"
+  tags:
+    - provision
+    - application
+- name: print nginx_config variable
+  debug:
+    msg: "{{ nginx_config }}"
+  tags:
+    - provision
+    - application
+    #- name: Permit traffic for http service
+    #become: true
+    #ansible.posix.firewalld:
+    #service: http
+    #permanent: yes
+    #immediate: yes
+    #state: enabled
+- name: Put SELinux in permissive mode
+  become: true
+  ansible.posix.selinux:
+    policy: targeted
+    state: permissive
+  tags:
+    - provision
+    - application
+- name: Restart Nginx
+  become: true
+  systemd:
+    name: nginx
+    state: restarted
+  when: nginx_config.changed
+  tags:
+    - provision
+    - application
+- name: Turn on NGINX Service
+  become: true
+  ansible.builtin.systemd:
+    name: nginx
+    state: started
+    enabled: yes
+  tags:
+    - provision
+    - application
+# - name: Collect facts about system services
+#   service_facts:
+#   register: services_state
+#   tags:
+#     - info
+# - name: Display status of nginx service
+#   debug:
+#     var: services_state.ansible_facts.services['nginx.service']
+#   when: services_state.ansible_facts.services['nginx.service'] is defined
+#   tags:
+#     - info

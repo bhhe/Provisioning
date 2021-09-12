@@ -1,0 +1,8 @@
+---
+backend_src_dir: /backend
+backend_user: backend
+backend_db_host: "localhost"
+backend_db_name: tutorials
+backend_db_user: backend
+backend_db_password: P@ssw0rd
+open_firewall: yes

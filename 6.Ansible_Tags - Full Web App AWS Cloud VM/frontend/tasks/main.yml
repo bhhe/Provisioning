@@ -1,0 +1,65 @@
+---
+- name: Install Software
+  become: true
+  ansible.builtin.package:
+    name: "{{ item }}"
+    state: present
+  with_items:
+    - git
+    - "@nodejs:14"
+  tags:
+    - provision
+    - application
+- name: Create the frontend user
+  become: true
+  user:
+    name: "{{ frontend_user_name }}"
+    comment: "Frontend user to run the frontend build"
+  tags:
+    - provision
+    - application
+- name: "Create the frontend {{ frontend_src_dir }} folder"
+  become: true
+  ansible.builtin.file:
+    path: "{{ frontend_src_dir }}"
+    state: directory
+    mode: "0755"
+    owner: "{{ frontend_user_name }}"
+  tags:
+    - provision
+    - application
+- name: git clone the frontend source code
+  become: true
+  become_user: "{{ frontend_user_name }}"
+  ansible.builtin.git:
+    repo: 'https://github.com/bezkoder/react-crud-web-api.git'
+    dest: "{{ frontend_src_dir }}"
+    force: yes
+  tags:
+    - provision
+    - application
+- name: Install frontend dependencies
+  become: true
+  become_user: "{{ frontend_user_name }}"
+  community.general.npm:
+    path: "{{ frontend_src_dir }}"
+  tags:
+    - provision
+    - application
+- name: Copy http-common.js
+  become: true
+  template:
+    src: http-common.js.j2
+    dest: /frontend/src/http-common.js
+  tags:
+    - provision
+    - application
+- name: Run the build
+  become: true
+  become_user: "{{ frontend_user_name }}"
+  ansible.builtin.shell: npm run-script build
+  args:
+    chdir: "{{ frontend_src_dir }}"
+  tags:
+    - provision
+    - application

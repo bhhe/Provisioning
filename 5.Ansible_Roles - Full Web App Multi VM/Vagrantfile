@@ -1,0 +1,55 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+Vagrant.configure("2") do |config|
+  config.vm.box = "centos8_4640"
+  config.ssh.username = "admin"
+  config.ssh.private_key_path = "private_ssh_key"
+  config.vm.synced_folder ".", "/vagrant_data", disabled:true
+  
+  config.vm.provider "virtualbox" do |vb|
+  #   # Display the VirtualBox GUI when booting the machine
+    vb.gui = true
+    vb.linked_clone = true
+  #   # Customize the amount of memory on the VM:
+    vb.memory = "2048"
+    vb.cpus = 2
+  end
+
+  config.vm.define "db" do |db|
+   db.vm.provider "virtualbox" do |vb|
+     vb.name = "TUTORIALS_4640_DB"
+     vb.memory = "1536"
+   end
+
+   db.vm.hostname = "db.bcit.local"
+    db.vm.network "private_network", ip: "192.168.150.30", virtualbox__intnet: true
+    db.vm.provision "ansible" do |ansible|
+     ansible.playbook = "tutorials.yaml"
+   end
+  end
+
+  config.vm.define "backend" do |backend|
+   backend.vm.provider "virtualbox" do |vb|
+     vb.name = "TUTORIALS_4640_Backend"
+   end
+   backend.vm.hostname = "backend.bcit.local"
+   backend.vm.network "private_network", ip: "192.168.150.10", virtualbox__intnet: true
+   backend.vm.provision "ansible" do |ansible|
+     ansible.playbook = "tutorials.yaml"
+   end
+  end
+ 
+  config.vm.define "http" do |http|
+   http.vm.provider "virtualbox" do |vb|
+     vb.name = "TUTORIALS_4640_HTTP"
+   end
+   http.vm.hostname = "http.bcit.local"
+   http.vm.network "forwarded_port", guest: 80, host: 8480
+   http.vm.network "private_network", ip: "192.168.150.20", virtualbox__intnet: true
+
+   http.vm.provision "ansible" do |ansible|
+     ansible.playbook = "tutorials.yaml"
+   end
+  end
+end

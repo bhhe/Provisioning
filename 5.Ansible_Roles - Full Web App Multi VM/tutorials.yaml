@@ -1,0 +1,19 @@
+---
+- hosts: http
+  tasks:
+    - name: Include the role "frontend"
+      include_role:
+        name: frontend
+    - name: Include the role "nginx"
+      include_role:
+        name: nginx
+- hosts: backend
+  tasks:
+    - name: Include the role "backend"
+      include_role:
+        name: backend
+- hosts: db
+  tasks:
+    - name: Include the role "database"
+      include_role:
+        name: database

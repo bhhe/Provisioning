@@ -1,0 +1,102 @@
+---
+- name: Setup VPC
+  ec2_vpc_net:
+    cidr_block: 10.50.0.0/16
+    name: vpc_4640
+  register: vpc_info
+  tags:
+    - provision
+- name: debug vpc_info
+  debug:
+    var: vpc_info
+  tags:
+    - provision
+- name: Setup Subnet
+  ec2_vpc_subnet:
+    az: us-west-2a
+    cidr: 10.50.10.0/24
+    vpc_id: "{{ vpc_info.vpc.id }}"
+    tags: 
+      Name: "{{ AWS_PREFIX }}_SUBNET"
+  register: subnet_info
+  tags:
+    - provision
+- name: Setup IGW
+  ec2_vpc_igw:
+    vpc_id: "{{ vpc_info.vpc.id }}"
+    tags:
+      Name: "{{ AWS_PREFIX }}_IGW"
+  register: igw_info
+  tags:
+    - provision
+- name: Setup routing table
+  ec2_vpc_route_table:
+    subnets:
+      - "{{ subnet_info.subnet.id }}"
+    routes:
+      - dest: 0.0.0.0/0
+        gateway_id: "{{ igw_info.gateway_id }}"
+    tags:
+      Name: "{{ AWS_PREFIX }}_RTBL"     
+    vpc_id: "{{ vpc_info.vpc.id }}"
+  register: route_info
+  tags:
+    - provision
+- name: Setup security group
+  ec2_group:
+    name: "{{ AWS_PREFIX }}_SECGRP"
+    description: Security group for Tutorials app
+    vpc_id: "{{ vpc_info.vpc.id }}"
+    rules:
+      - proto: tcp
+        ports: [22, 80]
+        cidr_ip: 0.0.0.0/0
+        rule_desc: Allow all on SSH and HTTP
+  register: secgroup
+  tags:
+    - provision
+- name: Setup instance
+  community.aws.ec2_instance:
+    image_id: ami-0ddc70e50205f89b6
+    instance_type: t2.micro
+    key_name: "keys_aws"
+    filters:
+      tag:Name: "{{ AWS_PREFIX }}_VM{{VM_SUFFIX}}"
+    network:
+      assign_public_ip: yes
+      delete_on_termination: yes
+      subnet_id: "{{ subnet_info.subnet.id }}"
+    security_group: "{{ secgroup.group_id }}"
+    name: "{{ AWS_PREFIX }}_VM{{ VM_SUFFIX }}"
+    vpc_subnet_id: "{{ subnet_info.subnet.id }}"
+    wait: yes
+  tags:
+    - provision
+- name: Gather Information about any instance with a tag key Name and value
+  community.aws.ec2_instance_info:
+    filters:
+      "tag:Name": "{{ AWS_PREFIX }}_VM{{ VM_SUFFIX }}"
+  register: ec2_node_info
+  tags:
+    - info
+    - clean
+- name: Debug ec2_node_info
+  debug:
+    msg: "{{ AWS_PREFIX }}_VM{{ VM_SUFFIX }} with ip {{ ec2_node_info.instances[0].public_ip_address }} is {{ ec2_node_info.instances[0].state.name }}. Navigate to {{ ec2_node_info.instances[0].public_dns_name }}"
+  when: ec2_node_info.instances[0] is defined
+  tags:
+    - info
+- name: "Remove ec2 instance {{ AWS_PREFIX }}_VM{{VM_SUFFIX}}"
+  community.aws.ec2_instance:
+    state: 'absent'
+    filters:
+      tag:Name: "{{ AWS_PREFIX }}_VM{{VM_SUFFIX}}"
+  when: ec2_node_info.instances[0] is defined
+  tags:
+    - never
+    - clean
+- name: Refresh inventory for AWS
+  meta: refresh_inventory
+  tags:
+    - never
+    - clean

@@ -1,0 +1,99 @@
+---
+- name: Install Software
+  become: true
+  ansible.builtin.package:
+    name: "{{ item }}"
+    state: present
+  with_items:
+    - python3
+    - python3-pip
+  tags:
+    - provision
+- name: Install Pip Packages
+  become: true
+  ansible.builtin.pip:
+    name: "{{ item }}"
+    state: present
+  with_items:
+    - flask
+    - requests
+    - gunicorn
+  tags:
+    - provision
+- name: "Create the backend {{ backend_user }} user"
+  become: true
+  user:
+    name: "{{ backend_user }}"
+    comment: "{{ backend_user }} user to run the {{ backend_user }} build"
+  register: backend_user_created
+  tags:
+    - provision
+- name: "Debug user"
+  become: true
+  debug:
+    msg: "{{ backend_user_created }}"
+  tags:
+    - provision
+- name: "Create the {{ backend_user }} {{ backend_path }} folder"
+  become: true
+  ansible.builtin.file:
+    path: "{{  backend_path }}"
+    state: directory
+    mode: "0755"
+    owner: "{{ backend_user }}"
+  tags:
+    - provision
+- name: "Create the api folder"
+  become: true
+  ansible.builtin.file:
+    path: "{{  backend_path }}/api"
+    state: directory
+    mode: "0755"
+    owner: "{{ backend_user }}"
+  tags:
+    - provision
+- name: Copy api init file
+  become: true
+  template:
+    src: "__init__.py.j2"
+    dest: "{{  backend_path }}/api/__init__.py"
+  tags:
+    - provision
+- name: Copy api backend file
+  become: true
+  template:
+    src: "backend.py.j2"
+    dest: "{{  backend_path }}/api/backend.py"
+  tags:
+    - provision
+- name: Copy run file
+  become: true
+  template:
+    src: "run.py.j2"
+    dest: "{{  backend_path }}/run.py"
+  tags:
+    - provision
+- name: Copy settings file
+  become: true
+  template:
+    src: "settings.txt.j2"
+    dest: "{{  backend_path }}/settings.txt"
+  tags:
+    - provision
+- name: Copy Service file
+  become: true
+  template:
+    src: backend.service.j2
+    dest: "/etc/systemd/system/backend.service"
+  tags:
+    - provision
+- name: Start service file
+  become: true
+  ansible.builtin.systemd:
+    name: backend.service
+    daemon_reload: yes
+    enabled: yes
+    state: started
+  when: backend_user_created.state == "present"
+  tags:
+    - provision

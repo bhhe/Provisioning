@@ -1,0 +1,6 @@
+---
+backend_db_name: tutorials
+backend_db_user: backend
+backend_db_password: P@ssw0rd
+root_db_password: P@ssw0rd
+open_firewall: yes

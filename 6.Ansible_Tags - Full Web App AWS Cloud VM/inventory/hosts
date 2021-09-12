@@ -1,0 +1,5 @@
+[aws]
+frontend	ansible_host=34.216.123.84 ansible_user=centos ansible_ssh_private_key_file=keys_aws.pem
+
+[local]
+localhost	ansible_connection=local

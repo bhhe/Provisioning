@@ -1,0 +1,16 @@
+#!/bin/bash
+set -uxe
+
+DB_HOST="localhost"
+DB_PORT="12345"
+DB_NAME="database"
+DB_USER="my_user"
+DB_PASSWORD="example"
+
+echo "The following users are available in the database:"
+
+# We use the environment variable to set the user password
+export MYSQL_PWD="$DB_PASSWORD"
+
+# Connect to MySQL and run a SELECT statement
+mysql -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USER" -D "$DB_NAME" --table -e "SELECT * FROM students;"

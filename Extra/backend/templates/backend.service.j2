@@ -1,0 +1,13 @@
+[Unit]
+Description=Tutorials {{ backend_user }}
+After=network.target
+
+[Service]
+WorkingDirectory={{ backend_path }}
+Type=simple
+User={{ backend_user }}
+ExecStart=/usr/local/bin/gunicorn run:app -b :8000
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

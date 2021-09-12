@@ -1,0 +1,4 @@
+---
+http_static_dir: /frontend
+http_api_location: /api
+http_backend_url: "http://192.168.150.10:8080"
